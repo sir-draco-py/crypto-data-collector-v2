@@ -1,8 +1,8 @@
 """
-Crypto Data Fetcher - CoinGecko API (Flask version for Render + cron-job.org)
+Crypto Data Fetcher - CoinGecko API
+Mengambil data harga & market crypto, lalu simpan ke Google Sheets
 """
 
-from flask import Flask, jsonify
 import requests
 import datetime
 import os
@@ -10,8 +10,7 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-app = Flask(__name__)
-
+# ==== KONFIGURASI ====
 COIN_IDS = [
     "bitcoin", "ethereum", "binancecoin", "solana",
     "cardano", "ripple", "dogecoin", "polkadot"
@@ -78,13 +77,9 @@ def save_to_gsheet(records):
     sheet.append_rows(records, value_input_option="USER_ENTERED")
 
 
-@app.route("/")
-def home():
-    return "Crypto Fetcher is running. Hit /fetch to trigger a data pull."
+def main():
+    print(f"[{datetime.datetime.utcnow()}] Mulai fetch data...")
 
-
-@app.route("/fetch")
-def fetch():
     try:
         raw_data = fetch_crypto_data()
         records = transform_data(raw_data)
@@ -92,18 +87,13 @@ def fetch():
 
         if valid_records:
             save_to_gsheet(valid_records)
-            return jsonify({
-                "status": "success",
-                "records_saved": len(valid_records),
-                "timestamp": datetime.datetime.utcnow().isoformat()
-            })
+            print(f"[SUCCESS] {len(valid_records)} record berhasil disimpan")
         else:
-            return jsonify({"status": "error", "message": "No valid records"}), 400
+            print("[ERROR] Tidak ada data valid untuk disimpan")
 
     except Exception as e:
-        return jsonify({"status": "failed", "error": str(e)}), 500
+        print(f"[FAILED] Fetch gagal: {e}")
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    main()
